@@ -4,34 +4,39 @@
 
 ## 🚀 Быстрый старт (Windows)
 
-### 1) Создать виртуальное окружение (рекомендуется)
+### 0) Установить `uv` (если ещё не установлен)
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+powershell -c "irm https://astral.sh/uv/install.ps1 | more"
 ```
 
-### 2) Установить зависимости
-```powershell
-python -m pip install -U pip
-python -m pip install -r requirements.txt  # если есть
-python -m pip install -e .
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | less
 ```
 
-> 🔎 В проекте используется `pyproject.toml` с зависимостями `psutil` и `PySide6`.
 
-### 3) Запуск приложения
+> ✅ `uv` — это удобный менеджер Python-проектов: он может создать виртуальное окружение, синхронизировать зависимости и запускать скрипты.
 
-#### Вариант A — стандартный (python)
+
+### 1) Синхронизировать проект (установить зависимости)
 ```powershell
-python app.py
+uv sync
 ```
 
-#### Вариант B — через `uv` (если установлен)
+> 🔎 Команда `uv sync` прочитает `pyproject.toml` и установит `psutil`, `PySide6` и другие зависимости.
+
+### 2) Запустить приложение (рекомендуемый вариант)
 ```powershell
 uv run .\app.py
 ```
 
-> ✅ `uv` работает как "удобный" лаунчер для Python-скриптов (может автоматически подхватить виртуальное окружение).
+---
+
+### Альтернатива: запуск прямо через Python
+```powershell
+python app.py
+```
+
+> ⚠️ Для работы с netsh приложение должно запускаться от имени администратора.
 
 ---
 
