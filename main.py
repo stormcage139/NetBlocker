@@ -12,6 +12,7 @@ def is_admin():
 
 
 
+
 def get_all_processes():
     processes = []
     username = os.getlogin()
@@ -26,11 +27,21 @@ def get_all_processes():
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
     processes.sort(key=lambda x: x["name"])
-    for p in processes:
-        print(p)
+    # for p in processes:
+    #     print(p)
     return processes
 
-
+def check_block_status(proc_name):
+    cmd = f'netsh advfirewall firewall show rule name=Block_{proc_name}'
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='cp866')
+        if result.returncode == 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"Ошибка при проверке статуса блокировки: {e}")
+        return False
     
     
 def set_strict_block(proc_path, rule_name):
@@ -69,14 +80,17 @@ def set_traffic_block(proc_path, rule_name, block=True):
     
     
 def main():
-    # get_all_processes()
-    print(set_traffic_block(r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe", "Block brave", block=False))
+    # print(get_all_processes())
+    print(check_block_status(r"C:\Users\stormcage\AppData\Local\Discord\app-1.0.9228\Discord.exe"))
+    # print(set_traffic_block(r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe", "Block brave", block=False))
 
     return    
 
 if __name__ == "__main__":
     if is_admin():
-        main()
+        # get_blocked_programs()
+        print(check_block_status("Discord.exe"))
+        # main()
         sys.exit(0)
     else:
         print("!!! ОШИБКА: Запустите от имени АДМИНИСТРАТОРА !!!")
