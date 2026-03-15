@@ -20,7 +20,7 @@ class MyApp(QMainWindow):
         self.ui.setupUi(self)
         header = self.ui.processTable.horizontalHeader()
 
-        # 2. Колонки 0 (PID) и 1 (Имя) сжимаем по размеру текста
+        # Колонки 0 (PID) и 1 (Имя) сжимаем по размеру текста
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
@@ -35,9 +35,11 @@ class MyApp(QMainWindow):
         self.ui.ReloadButton.clicked.connect(self.handle_reload)
         self.processes = get_all_processes()
         self.fill_table(self.processes)
-        self.blocked = set()  # Множество для хранения заблокированных программ
+        self.blocked = set()
+        
         print(self.processes,sep="\n")
         
+    statuses = {} 
         
     def get_icon_from_exe(self, exe_path):
         if exe_path and os.path.exists(exe_path):
@@ -70,6 +72,8 @@ class MyApp(QMainWindow):
             if success:
                 print(f"Процесс {proc['name']} {action}")
                 # Обновляем список заблокированных и таблицу
+                # self.fill_table(self.processes)
+                self.statuses[proc['exe']] = not currently_blocked  # Инвертируем статус
                 self.fill_table(self.processes)
             else:
                 print(f"Ошибка при {action[:-2]}ии процесса {proc['name']}: {message}")
@@ -98,7 +102,7 @@ class MyApp(QMainWindow):
         # 2. Очищаем таблицу и задаем количество строк
         self.ui.processTable.setRowCount(len(processes))
         # 3. Заполняем ячейки
-        statuses = {}
+
         for row, proc in enumerate(processes):
             # Создаем элементы для каждой колонки
             icon = self.get_icon_from_exe(proc['exe'])
@@ -109,11 +113,11 @@ class MyApp(QMainWindow):
             name_item = QTableWidgetItem(proc['name'])
             exe_item = QTableWidgetItem(proc['exe'])
             status_item = QTableWidgetItem()
-            if statuses.get(proc['exe']) is not None:
-                blocked = statuses.get(proc['exe'])
+            if self.statuses.get(proc['exe']) is not None:
+                blocked = self.statuses.get(proc['exe'])
             else:
                 blocked = check_block_status(proc['name'])
-                statuses[proc['exe']] = blocked
+                self.statuses[proc['exe']] = blocked
 
             if blocked:
                 status_item.setText("Заблокирован")

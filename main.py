@@ -86,6 +86,25 @@ def main():
 
     return    
 
+def get_all_blocked_rules():
+    cmd = 'netsh advfirewall firewall show rule name=all'
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='cp866')
+        if result.returncode == 0:
+            lines = result.stdout.split('\n')
+            blocked_rules = {}
+            for line in lines:
+                if 'Block_' in line:
+                    
+                    rule_name = line.split(':', 1)[1].strip()
+                    blocked_rules[rule_name] = True
+            return blocked_rules
+        else:
+            return {}
+    except Exception as e:
+        print(f"Ошибка при получении правил: {e}")
+        return {}
+
 if __name__ == "__main__":
     if is_admin():
         # get_blocked_programs()
@@ -93,6 +112,7 @@ if __name__ == "__main__":
         # main()
         sys.exit(0)
     else:
+        print(get_all_blocked_rules())
         print("!!! ОШИБКА: Запустите от имени АДМИНИСТРАТОРА !!!")
         sys.exit(1)
     
