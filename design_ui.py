@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (QApplication, QGridLayout, QHeaderView, QLabel,
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
-            MainWindow.setObjectName(u"MainWindow")
+            MainWindow.setObjectName(u"NetworkBlocker")
         MainWindow.resize(1101, 608)
         MainWindow.setStyleSheet(u"QMainWindow { background-color: #1e1e1e; }\n"
 "QTableWidget { \n"

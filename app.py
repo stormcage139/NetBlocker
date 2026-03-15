@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QHeaderView
 from design_ui import Ui_MainWindow 
 from PySide6.QtWidgets import QTableWidgetItem, QHeaderView, QFileIconProvider
 from PySide6.QtCore import Qt, QFileInfo, QTimer
-from main import check_block_status, get_all_processes, set_traffic_block, is_admin
+from main import check_block_status, get_all_processes, set_traffic_block, is_admin, get_all_blocked_rules
 
 
 
@@ -58,7 +58,7 @@ class MyApp(QMainWindow):
             proc = self.processes[row]
             exe = proc['exe']
             rule_name = f"Block_{proc['name']}"
-            currently_blocked = check_block_status(proc['name'])
+            currently_blocked = self.statuses.get(proc['exe'], False)
             print(f"Проверка статуса блокировки для {proc['name']}: {currently_blocked}")
             if currently_blocked:
                 # Разблокировать
@@ -101,23 +101,32 @@ class MyApp(QMainWindow):
         
         # 2. Очищаем таблицу и задаем количество строк
         self.ui.processTable.setRowCount(len(processes))
-        # 3. Заполняем ячейки
-
+        
+        # 3. Получаем все заблокированные правила одним вызовом
+        all_blocked = get_all_blocked_rules()
+        icons = {}
+        # 4. Заполняем ячейки
         for row, proc in enumerate(processes):
             # Создаем элементы для каждой колонки
-            icon = self.get_icon_from_exe(proc['exe'])
+            if proc['exe'] in icons:
+                icon = icons[proc['exe']]
+            else:
+                icon = self.get_icon_from_exe(proc['exe'])
+                icons[proc['exe']] = icon
+
             icon_item = QTableWidgetItem()
             icon_item.setIcon(icon)
-        
+            
+            
             pid_item = QTableWidgetItem(str(proc['pid']))
             name_item = QTableWidgetItem(proc['name'])
             exe_item = QTableWidgetItem(proc['exe'])
             status_item = QTableWidgetItem()
-            if self.statuses.get(proc['exe']) is not None:
-                blocked = self.statuses.get(proc['exe'])
-            else:
-                blocked = check_block_status(proc['name'])
-                self.statuses[proc['exe']] = blocked
+            
+            # Проверяем статус блокировки из общего списка правил
+            rule_name = f"Block_{proc['name']}"
+            blocked = rule_name in all_blocked
+            self.statuses[proc['exe']] = blocked
 
             if blocked:
                 status_item.setText("Заблокирован")

@@ -2,20 +2,24 @@ import subprocess
 import psutil
 import os 
 import ctypes, sys
+import platform
+import getpass
+
+
 
 def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-
-
+    if platform.system() == 'Windows':
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+    else:
+        return os.geteuid() == 0
 
 
 def get_all_processes():
     processes = []
-    username = os.getlogin()
+    username = getpass.getuser()
     for proc in psutil.process_iter(['pid', 'name', 'username']):
         try:
             # Получаем информацию о пользователе и ПУТЬ к файлу
@@ -32,9 +36,15 @@ def get_all_processes():
     return processes
 
 def check_block_status(proc_name):
-    cmd = f'netsh advfirewall firewall show rule name=Block_{proc_name}'
+    if platform.system() == 'Windows':
+        cmd = f'netsh advfirewall firewall show rule name=Block_{proc_name}'
+        encoding = 'cp866'
+    else:
+        # На Linux проверяем iptables по комментарию
+        cmd = f'iptables -L OUTPUT -n | grep "Block_{proc_name}"'
+        encoding = 'utf-8'
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='cp866')
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding=encoding)
         if result.returncode == 0:
             return True
         else:
@@ -60,17 +70,29 @@ def set_traffic_block(proc_path, rule_name, block=True):
     block=True  -> Создает правило блокировки
     block=False -> Удаляет правило (разблокирует)
     """
-    if block:
-        # Команда добавляет правило для блокировки исходящего (out) трафика
-        # Можно добавить вторую такую же для 'dir=in' (входящий)
-        cmd = f'netsh advfirewall firewall add rule name="{rule_name}" dir=out action=block program="{proc_path}" enable=yes'
+    if platform.system() == 'Windows':
+        if block:
+            cmd = f'netsh advfirewall firewall add rule name="{rule_name}" dir=out action=block program="{proc_path}" enable=yes'
+        else:
+            cmd = f'netsh advfirewall firewall delete rule name="{rule_name}"'
+        encoding = 'cp866'
     else:
-        # Удаляем все правила с этим именем
-        cmd = f'netsh advfirewall firewall delete rule name="{rule_name}"'
+        # На Linux: найти UID процесса по пути exe
+        uid = None
+        for proc in psutil.process_iter(['exe', 'uids']):
+            if proc.info['exe'] == proc_path:
+                uid = proc.info['uids'].real
+                break
+        if uid is None:
+            return False, "Процесс не найден или не имеет UID"
+        if block:
+            cmd = f'iptables -A OUTPUT -m owner --uid-owner {uid} -j DROP -m comment --comment "{rule_name}"'
+        else:
+            cmd = f'iptables -D OUTPUT -m owner --uid-owner {uid} -j DROP -m comment --comment "{rule_name}"'
+        encoding = 'utf-8'
     
     try:
-        # Запускаем команду скрыто
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='cp866')
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding=encoding)
         if result.returncode == 0:
             return True, "Успешно"
         else:
@@ -87,23 +109,44 @@ def main():
     return    
 
 def get_all_blocked_rules():
-    cmd = 'netsh advfirewall firewall show rule name=all'
-    try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='cp866')
-        if result.returncode == 0:
-            lines = result.stdout.split('\n')
-            blocked_rules = {}
-            for line in lines:
-                if 'Block_' in line:
-                    
-                    rule_name = line.split(':', 1)[1].strip()
-                    blocked_rules[rule_name] = True
-            return blocked_rules
-        else:
+    if platform.system() == 'Windows':
+        cmd = 'netsh advfirewall firewall show rule name=all'
+        encoding = 'cp866'
+        try:
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding=encoding)
+            if result.returncode == 0:
+                lines = result.stdout.split("-" * 70)
+                blocked_rules = {}
+                for line in lines:
+                    if 'Rule Name:' in line and 'Block_' in line:
+                        rule_name = line.split(':', 1)[1].strip()
+                        blocked_rules[rule_name] = True
+                return blocked_rules
+            else:
+                return {}
+        except Exception as e:
+            print(f"Ошибка при получении правил: {e}")
             return {}
-    except Exception as e:
-        print(f"Ошибка при получении правил: {e}")
-        return {}
+    else:
+        # На Linux: парсим iptables
+        cmd = 'iptables -L OUTPUT -n'
+        try:
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8')
+            if result.returncode == 0:
+                blocked_rules = {}
+                for line in result.stdout.split('\n'):
+                    if 'Block_' in line:
+                        # Ищем комментарий /* Block_<name> */
+                        if '/*' in line and '*/' in line:
+                            comment = line.split('/*')[1].split('*/')[0]
+                            if comment.startswith('Block_'):
+                                blocked_rules[comment] = True
+                return blocked_rules
+            else:
+                return {}
+        except Exception as e:
+            print(f"Ошибка при получении правил: {e}")
+            return {}
 
 if __name__ == "__main__":
     if is_admin():
