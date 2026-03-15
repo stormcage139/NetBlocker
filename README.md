@@ -5,10 +5,11 @@
 ## 🚀 Быстрый старт (Windows)
 
 ### 0) Установить `uv` (если ещё не установлен)
+Windows
 ```powershell
 powershell -c "irm https://astral.sh/uv/install.ps1 | more"
 ```
-
+Или для Linux(curl)
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | less
 ```
